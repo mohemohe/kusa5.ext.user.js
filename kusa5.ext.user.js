@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kusa5.ext
 // @namespace    net.ghippos.ext.kusa5
-// @version      1
+// @version      0.9
 // @description  Next generation of kusa5.mod.user.js. Based on the original HTML5 player by Niconico.
 // @author       mohemohe
 // @match        *.nicovideo.jp/watch/*
@@ -44,31 +44,33 @@ class Fucker {
     }
 
     hook() {
-        const target = document.querySelector(".ControllerContainer");
+        const target = document.querySelector('.ControllerContainer');
         if (!target) {
             return;
         }
 
         Dom.attachStyle({
-            suffix: "base",
+            suffix: 'base',
             css: BaseCss,
         });
 
-        ReactModoki.mount(Controller);
+        if (!ReactModoki.has(Controller)) {
+            ReactModoki.mount(Controller, '.ControllerBoxContainer', 'afterbegin');
+        }
     }
 
     recursiveShow(element) {
-        if (element.tagName.toLowerCase() === "body") {
+        if (element.tagName.toLowerCase() === 'body') {
             return;
         }
-        element.classList.add("show");
+        element.classList.add('show');
         if (element.parentElement) {
             this.recursiveShow(element.parentElement);
         }
     }
 
     getBodyChildElement(element) {
-        if (element.parentElement.tagName.toLowerCase() === "body") {
+        if (element.parentElement.tagName.toLowerCase() === 'body') {
             return element;
         } else {
             return this.getBodyChildElement(element.parentElement);
@@ -78,10 +80,10 @@ class Fucker {
 
 class Dom {
     static attachStyle(appendCss) {
-        const id = `kusa5-ext-style${appendCss.suffix ? `-${appendCss.suffix}` : ""}`;
+        const id = `kusa5-ext-style${appendCss.suffix ? `-${appendCss.suffix}` : ''}`;
         let style = document.querySelector(`style#${id}`);
         if (!style) {
-            style = document.createElement("style");
+            style = document.createElement('style');
             style.id = id;
             document.body.appendChild(style);
         }
@@ -98,23 +100,23 @@ class Dom {
         }
     }
 
-    static attachScript(url, target = "body") {
+    static attachScript(url, target = 'body') {
         const targetDom = document.querySelector(target);
         if (!targetDom) {
             return null;
         }
-        const tag = document.createElement("script");
-        tag.setAttribute("type", "text/javascript");
-        tag.setAttribute("src", url);
+        const tag = document.createElement('script');
+        tag.setAttribute('type', 'text/javascript');
+        tag.setAttribute('src', url);
         targetDom.appendChild(tag);
 
         return tag || null;
     }
 
-    static attachTag(rawTag, target = "body") {
+    static attachTag(rawTag, target = 'body', position = 'inner') {
         const parser = new DOMParser();
-        const dom = parser.parseFromString(rawTag, "text/html").querySelector("body");
-        const targetDom = typeof target === typeof "" ? document.querySelector(target) : target;
+        const dom = parser.parseFromString(rawTag, 'text/html').querySelector('body');
+        const targetDom = typeof target === typeof '' ? document.querySelector(target) : target;
         if (!targetDom) {
             return null;
         }
@@ -132,9 +134,19 @@ class Dom {
             if (currentTag && currentTag.parentNode) {
                 currentTag.parentNode.removeChild(currentTag);
             }
-            targetDom.appendChild(tag);
-        } else {
-            targetDom.innerHTML += rawTag;
+
+            switch (position) {
+                case 'beforebegin':
+                case 'afterbegin':
+                case 'beforeend':
+                case 'afterend':
+                    targetDom.insertAdjacentElement(position, tag);
+                    break;
+                case 'inner':
+                default:
+                    targetDom.appendChild(tag);
+                    break;
+            }
         }
 
         return tag || null;
@@ -168,22 +180,26 @@ class ReactModoki {
             }
         }
 
-        const tag = this._render();
-        Dom.attachTag(`<div id="react-modoki-${this.constructor.name}">${tag}</div>`, this.target);
-    }
+        let shouldUpdate = true;
+        if (this.shouldComponentUpdate) {
+            shouldUpdate = this.shouldComponentUpdate();
+        }
 
-    static load(cls) {
-        window.__reactmodoki__ = window.__reactmodoki__ || {};
-        try {
-            window.__reactmodoki__[cls.name] = new cls();
-            return cls;
-        } catch (e) {
-            console.error(e);
-            return null;
+        if (shouldUpdate) {
+            if (this.compornentWillUpdate) {
+                this.compornentWillUpdate();
+            }
+
+            const tag = this._render();
+            Dom.attachTag(`<div id="reactmodoki-${this.constructor.name}">${tag}</div>`, this.target);
+
+            if (this.compornentDidUpdate) {
+                this.compornentDidUpdate();
+            }
         }
     }
 
-    static mount(cls, target) {
+    static mount(cls, target, position) {
         window.__reactmodoki__ = window.__reactmodoki__ || {};
         try {
             window.__reactmodoki__[cls.name] = new cls();
@@ -193,9 +209,12 @@ class ReactModoki {
             return null;
         }
 
-        if (window.__reactmodoki__[cls.name].componentDidMount) {
-            window.__reactmodoki__[cls.name].componentDidMount();
+        if (window.__reactmodoki__[cls.name].componentWillMount) {
+            window.__reactmodoki__[cls.name].componentWillMount();
         }
+
+        Dom.attachTag(`<div id="reactmodoki-${cls.name}"></div>`, target, position);
+
         if (window.__reactmodoki__[cls.name].render) {
             window.__reactmodoki__[cls.name].render();
         }
@@ -210,6 +229,11 @@ class ReactModoki {
             delete window.__reactmodoki__[cls.name];
         }
     }
+
+    static has(cls) {
+        window.__reactmodoki__ = window.__reactmodoki__ || {};
+        return window.__reactmodoki__[cls.name];
+    }
 }
 
 class NiconicoPlayerHelper {
@@ -222,10 +246,13 @@ class NiconicoPlayerHelper {
         if (!reactInternalInstanceKey) {
             return null;
         }
-        const reactVideoContainer = container[reactInternalInstanceKey].child.stateNode;
-        if (!reactVideoContainer) {
-            return null;
-        }
+
+        if (!container[reactInternalInstanceKey] ||
+            !container[reactInternalInstanceKey].child ||
+            !container[reactInternalInstanceKey].child.stateNode) {
+                return null;
+            }
+        return container[reactInternalInstanceKey].child.stateNode;
     }
 
     static get player() {
@@ -249,7 +276,9 @@ class Controller extends ReactModoki {
 	render(props, state) {
         // TODO: impl
         return String.raw`
-            <span>${ `yay!` }</span>
+            <div>
+                <button>さいせー/ていし</button>
+            </div>
         `;
 	}
 }
