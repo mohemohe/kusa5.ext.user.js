@@ -8,7 +8,7 @@
 // @grant        none
 // ==/UserScript==
 
-const BaseCss = String.raw `
+const BaseCss = String.raw`
 .SeekBarContainer,
 .ControllerContainer {
     display: none !important;
@@ -37,7 +37,7 @@ class Fucker {
                 childList: true,
                 subtree: true,
             });
-        } else if (!target && this.targetMutationObserverStarted){
+        } else if (!target && this.targetMutationObserverStarted) {
             this.targetMutationObserver.disconnect();
             this.targetMutationObserverStarted = false;
         }
@@ -250,8 +250,8 @@ class NiconicoPlayerHelper {
         if (!container[reactInternalInstanceKey] ||
             !container[reactInternalInstanceKey].child ||
             !container[reactInternalInstanceKey].child.stateNode) {
-                return null;
-            }
+            return null;
+        }
         return container[reactInternalInstanceKey].child.stateNode;
     }
 
@@ -267,20 +267,20 @@ class NiconicoPlayerHelper {
 
 class Controller extends ReactModoki {
     constructor() {
-		super();
-	}
+        super();
+    }
 
-	componentDidMount() {
-	}
+    componentDidMount() {
+    }
 
-	render(props, state) {
+    render(props, state) {
         // TODO: impl
         return String.raw`
             <div>
                 <button>さいせー/ていし</button>
             </div>
         `;
-	}
+    }
 }
 
 new Fucker().start();
