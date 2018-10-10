@@ -59,16 +59,6 @@ class Fucker {
         }
     }
 
-    recursiveShow(element) {
-        if (element.tagName.toLowerCase() === 'body') {
-            return;
-        }
-        element.classList.add('show');
-        if (element.parentElement) {
-            this.recursiveShow(element.parentElement);
-        }
-    }
-
     getBodyChildElement(element) {
         if (element.parentElement.tagName.toLowerCase() === 'body') {
             return element;
