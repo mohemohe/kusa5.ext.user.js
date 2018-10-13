@@ -162,6 +162,13 @@ class ReactModoki {
         }
     }
 
+    forceUpdate(cb) {
+        this.render();
+        if (cb) {
+            cb();
+        }
+    }
+
     __render() {
         if (!this.__initialized) {
             this.__initialized = true;
@@ -181,7 +188,10 @@ class ReactModoki {
             }
 
             const tag = this._render();
-            Dom.attachTag(`<div id="reactmodoki-${this.constructor.name}">${tag}</div>`, this.target);
+            const dom = Dom.attachTag(`<div id="reactmodoki-${this.constructor.name}">${tag}</div>`, this.target, this.position);
+            if (dom) {
+                ReactModoki.applyFn(dom, this);
+            }
 
             if (this.compornentDidUpdate) {
                 this.compornentDidUpdate();
@@ -194,6 +204,7 @@ class ReactModoki {
         try {
             window.__reactmodoki__[cls.name] = new cls();
             window.__reactmodoki__[cls.name].target = target;
+            window.__reactmodoki__[cls.name].position = position;
         } catch (e) {
             console.error(e);
             return null;
@@ -218,6 +229,11 @@ class ReactModoki {
         if (window.__reactmodoki__[cls.name]) {
             delete window.__reactmodoki__[cls.name];
         }
+    }
+
+    static applyFn(target, thisArg) {
+        Object.assign(target, thisArg);
+        target.childNodes.forEach(node => ReactModoki.applyFn(node, thisArg));
     }
 
     static has(cls) {
@@ -258,16 +274,35 @@ class NiconicoPlayerHelper {
 class Controller extends ReactModoki {
     constructor() {
         super();
+
+        this.state = {
+            paused: true,
+        };
+
+        this.onClickPlayPauseButton = this.onClickPlayPauseButton.bind(this);
     }
 
     componentDidMount() {
     }
 
-    render(props, state) {
+    async onClickPlayPauseButton() {
+        const paused = await NiconicoPlayerHelper.player.paused();
+        if (paused) {
+            NiconicoPlayerHelper.player.play()
+        } else {
+            NiconicoPlayerHelper.player.pause()
+        }
+
+        this.setState({
+            paused: !paused,
+        });
+    }
+
+    render() {
         // TODO: impl
         return String.raw`
-            <div>
-                <button>さいせー/ていし</button>
+            <div style="height: calc(80px - 32px);">
+                <button onclick="this.onClickPlayPauseButton()">${this.state.paused ? '再生' : '停止'}</button>
             </div>
         `;
     }
