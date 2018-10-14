@@ -54,8 +54,8 @@ class Fucker {
             css: BaseCss,
         });
 
-        if (!ReactModoki.has(Controller)) {
-            ReactModoki.mount(Controller, '.ControllerBoxContainer', 'afterbegin');
+        if (!Controller.has()) {
+            Controller.mount('.ControllerBoxContainer', 'afterbegin');
         }
     }
 
@@ -106,10 +106,7 @@ class Dom {
     static attachTag(rawTag, target = 'body', position = 'inner') {
         const parser = new DOMParser();
         const dom = parser.parseFromString(rawTag, 'text/html').querySelector('body');
-        const targetDom = typeof target === typeof '' ? document.querySelector(target) : target;
-        if (!targetDom) {
-            return null;
-        }
+
         let tag;
         if (dom && dom.childNodes && dom.childNodes.length > 0) {
             const node = dom.childNodes[0];
@@ -117,6 +114,7 @@ class Dom {
                 tag = node;
             }
         }
+
         if (tag) {
             const name = tag.nodeName.toLowerCase();
             const id = tag.id;
@@ -125,17 +123,24 @@ class Dom {
                 currentTag.parentNode.removeChild(currentTag);
             }
 
-            switch (position) {
-                case 'beforebegin':
-                case 'afterbegin':
-                case 'beforeend':
-                case 'afterend':
-                    targetDom.insertAdjacentElement(position, tag);
-                    break;
-                case 'inner':
-                default:
-                    targetDom.appendChild(tag);
-                    break;
+            if (target !== null) {
+                const targetDom = typeof target === typeof '' ? document.querySelector(target) : target;
+                if (!targetDom) {
+                    return null;
+                }
+
+                switch (position) {
+                    case 'beforebegin':
+                    case 'afterbegin':
+                    case 'beforeend':
+                    case 'afterend':
+                        targetDom.insertAdjacentElement(position, tag);
+                        break;
+                    case 'inner':
+                    default:
+                        targetDom.appendChild(tag);
+                        break;
+                }
             }
         }
 
@@ -154,6 +159,10 @@ class ReactModoki {
         this.__initialized = false;
     }
 
+    bind(func) {
+        return `${this.self}.${func.name.split(' ').pop()}()`;
+    }
+
     setState(state, cb) {
         this.state = Object.assign(this.state, state);
         this.render();
@@ -169,7 +178,11 @@ class ReactModoki {
         }
     }
 
-    __render() {
+    __render(block) {
+        if (this.parent && !block) {
+            return this.parent.__render(true);
+        }
+        
         if (!this.__initialized) {
             this.__initialized = true;
             if (this.componentDidMount) {
@@ -189,56 +202,63 @@ class ReactModoki {
 
             const tag = this._render();
             const dom = Dom.attachTag(`<div id="reactmodoki-${this.constructor.name}">${tag}</div>`, this.target, this.position);
-            if (dom) {
-                ReactModoki.applyFn(dom, this);
-            }
 
             if (this.compornentDidUpdate) {
                 this.compornentDidUpdate();
             }
+
+            return dom;
         }
     }
 
-    static mount(cls, target, position) {
+    static mount(target, position, parent = null) {
         window.__reactmodoki__ = window.__reactmodoki__ || {};
-        try {
-            window.__reactmodoki__[cls.name] = new cls();
-            window.__reactmodoki__[cls.name].target = target;
-            window.__reactmodoki__[cls.name].position = position;
-        } catch (e) {
-            console.error(e);
-            return null;
+        if (!window.__reactmodoki__[this.name]) {
+            try {
+                window.__reactmodoki__[this.name] = new this();
+                window.__reactmodoki__[this.name].target = target;
+                window.__reactmodoki__[this.name].position = position;
+                window.__reactmodoki__[this.name].parent = parent;
+            } catch (e) {
+                console.error(e);
+                return null;
+            }
+    
+            if (window.__reactmodoki__[this.name].componentWillMount) {
+                window.__reactmodoki__[this.name].componentWillMount();
+            }
+    
+            Dom.attachTag(`<div id="reactmodoki-${this.name}"></div>`, target, position);
         }
 
-        if (window.__reactmodoki__[cls.name].componentWillMount) {
-            window.__reactmodoki__[cls.name].componentWillMount();
-        }
-
-        Dom.attachTag(`<div id="reactmodoki-${cls.name}"></div>`, target, position);
-
-        if (window.__reactmodoki__[cls.name].render) {
-            window.__reactmodoki__[cls.name].render();
+        if (target === null) {
+            return window.__reactmodoki__[this.name].__render(true);
+        } else if (window.__reactmodoki__[this.name].render) {
+            return window.__reactmodoki__[this.name].render();
         }
     }
 
-    static unmount(cls) {
+    static unmount() {
         window.__reactmodoki__ = window.__reactmodoki__ || {};
-        if (window.__reactmodoki__[cls.name].componentWillUnmount) {
-            window.__reactmodoki__[cls.name].componentWillUnmount();
+        if (window.__reactmodoki__[this.name].componentWillUnmount) {
+            window.__reactmodoki__[this.name].componentWillUnmount();
         }
-        if (window.__reactmodoki__[cls.name]) {
-            delete window.__reactmodoki__[cls.name];
+        if (window.__reactmodoki__[this.name]) {
+            delete window.__reactmodoki__[this.name];
         }
     }
 
-    static applyFn(target, thisArg) {
-        Object.assign(target, thisArg);
-        target.childNodes.forEach(node => ReactModoki.applyFn(node, thisArg));
-    }
-
-    static has(cls) {
+    static has() {
         window.__reactmodoki__ = window.__reactmodoki__ || {};
-        return window.__reactmodoki__[cls.name];
+        return window.__reactmodoki__[this.name];
+    }
+
+    static embed(parent) {
+        if (this.has()) {
+            return this.has().__render(true).outerHTML;
+        } else {
+            return this.mount(null, null, parent).outerHTML;
+        }
     }
 }
 
@@ -280,9 +300,12 @@ class Controller extends ReactModoki {
         };
 
         this.onClickPlayPauseButton = this.onClickPlayPauseButton.bind(this);
+        this.onClickOriginalSettingButton = this.onClickOriginalSettingButton.bind(this);
     }
 
     componentDidMount() {
+        // debug
+        window.player = NiconicoPlayerHelper.player;
     }
 
     async onClickPlayPauseButton() {
@@ -298,11 +321,58 @@ class Controller extends ReactModoki {
         });
     }
 
+    onClickOriginalSettingButton() {
+        const button = document.querySelector('.PlayerOptionButton');
+        if (button) {
+            button.dispatchEvent(new MouseEvent("click", {
+                bubbles: true,
+            }));
+        }
+    }
+
     render() {
         // TODO: impl
         return String.raw`
-            <div style="height: calc(80px - 32px);">
-                <button onclick="this.onClickPlayPauseButton()">${this.state.paused ? '再生' : '停止'}</button>
+            <div style="height: calc(80px - 32px); color: white;">
+                <button onclick="${this.bind(this.onClickPlayPauseButton)}">${this.state.paused ? '再生' : '停止'}</button>
+                <button onclick="${this.bind(this.onClickOriginalSettingButton)}">設定</button>
+                ${PlayTime.embed(this)}
+            </div>
+        `;
+    }
+}
+
+class PlayTime extends ReactModoki {
+    constructor() {
+        super();
+
+        this.timerHandler = null;
+
+        this.state = {
+            currentTime: 0,
+            duration: 0,
+        };
+    }
+
+    componentDidMount() {
+        this.timerHandler = setInterval(() => this.onInterval(), 500);
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.timerHandler);
+    }
+
+    async onInterval() {
+        this.setState({
+            currentTime: NiconicoPlayerHelper.player.currentTime(),
+            duration: NiconicoPlayerHelper.player.duration(),
+        })
+    }
+
+    render() {
+        return String.raw`
+            <div>
+                <div>${this.state.currentTime} / ${this.state.duration}</div>
             </div>
         `;
     }
