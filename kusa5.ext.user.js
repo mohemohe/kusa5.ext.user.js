@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kusa5.ext
 // @namespace    net.ghippos.ext.kusa5
-// @version      0.9
+// @version      0.99
 // @description  Next generation of kusa5.mod.user.js. Based on the original HTML5 player by Niconico.
 // @author       mohemohe
 // @match        *.nicovideo.jp/watch/*
@@ -9,9 +9,19 @@
 // ==/UserScript==
 
 const BaseCss = String.raw`
+.ControllerBoxContainer {
+    position: relative !important;
+}
+
+#reactmodoki-Controller {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
 .SeekBarContainer,
 .ControllerContainer {
-    display: none !important;
+    visibility: hidden !important;
 }
 `.trim();
 
@@ -160,7 +170,7 @@ class ReactModoki {
     }
 
     bind(func) {
-        return `${this.self}.${func.name.split(' ').pop()}()`;
+        return `${this.self}.${func.name.split(' ').pop()}(...arguments)`;
     }
 
     setState(state, cb) {
@@ -322,11 +332,9 @@ class Controller extends ReactModoki {
     }
 
     onClickOriginalSettingButton() {
-        const button = document.querySelector('.PlayerOptionButton');
-        if (button) {
-            button.dispatchEvent(new MouseEvent("click", {
-                bubbles: true,
-            }));
+        const playerOptionContainer = document.querySelector(".PlayerOptionContainer");
+        if (playerOptionContainer) {
+            playerOptionContainer.classList.toggle("is-hidden");
         }
     }
 
@@ -352,6 +360,8 @@ class PlayTime extends ReactModoki {
             currentTime: 0,
             duration: 0,
         };
+
+        this.onInputSeekbar = this.onInputSeekbar.bind(this);
     }
 
     componentDidMount() {
@@ -363,16 +373,34 @@ class PlayTime extends ReactModoki {
     }
 
     async onInterval() {
-        this.setState({
-            currentTime: NiconicoPlayerHelper.player.currentTime(),
-            duration: NiconicoPlayerHelper.player.duration(),
-        })
+        const currentTime = NiconicoPlayerHelper.player.currentTime();
+        let duration = NiconicoPlayerHelper.player.duration();
+        if (isNaN(duration)) {
+            duration = 0;
+        }
+
+        if (this.state.currentTime != currentTime || this.state.duration != duration) {
+            this.setState({
+                currentTime,
+                duration,
+            });
+        }
+    }
+
+    onInputSeekbar(event) {
+        const seekTarget = parseInt(event.target.value, 10);
+        if (!isNaN(seekTarget)) {
+            NiconicoPlayerHelper.player.currentTime(seekTarget);
+        }
     }
 
     render() {
         return String.raw`
             <div>
-                <div>${this.state.currentTime} / ${this.state.duration}</div>
+                <div>
+                    <input type="range" value="${this.state.currentTime}" min="0" max="${this.state.duration}" step="1" oninput="${this.bind(this.onInputSeekbar)}">
+                    ${this.state.currentTime} / ${this.state.duration}
+                </div>
             </div>
         `;
     }
