@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kusa5.ext
 // @namespace    net.ghippos.ext.kusa5
-// @version      0.99
+// @version      0.999
 // @description  Next generation of kusa5.mod.user.js. Based on the original HTML5 player by Niconico.
 // @author       mohemohe
 // @match        *.nicovideo.jp/watch/*
@@ -309,8 +309,8 @@ class Controller extends ReactModoki {
             paused: true,
         };
 
-        this.onClickPlayPauseButton = this.onClickPlayPauseButton.bind(this);
-        this.onClickOriginalSettingButton = this.onClickOriginalSettingButton.bind(this);
+        // this.onClickPlayPauseButton = this.onClickPlayPauseButton.bind(this);
+        // this.onClickSettingButton = this.onClickSettingButton.bind(this);
     }
 
     componentDidMount() {
@@ -331,10 +331,18 @@ class Controller extends ReactModoki {
         });
     }
 
-    onClickOriginalSettingButton() {
-        const playerOptionContainer = document.querySelector(".PlayerOptionContainer");
+    onClickSettingButton() {
+        // const playerOptionButton = document.querySelector('button.ActionButton.ControllerButton.PlayerOptionButton');
+        // if (playerOptionButton) {
+        //     playerOptionButton.dispatchEvent(new Event('click', {
+        //         bubbles: true,
+        //         cancelable: true,
+        //     }));
+        // }
+        
+        const playerOptionContainer = document.querySelector('.PlayerOptionContainer');
         if (playerOptionContainer) {
-            playerOptionContainer.classList.toggle("is-hidden");
+            playerOptionContainer.classList.toggle('is-hidden');
         }
     }
 
@@ -343,7 +351,7 @@ class Controller extends ReactModoki {
         return String.raw`
             <div style="height: calc(80px - 32px); color: white;">
                 <button onclick="${this.bind(this.onClickPlayPauseButton)}">${this.state.paused ? '再生' : '停止'}</button>
-                <button onclick="${this.bind(this.onClickOriginalSettingButton)}">設定</button>
+                <button onclick="${this.bind(this.onClickSettingButton)}">設定</button>
                 ${PlayTime.embed(this)}
             </div>
         `;
@@ -361,7 +369,7 @@ class PlayTime extends ReactModoki {
             duration: 0,
         };
 
-        this.onInputSeekbar = this.onInputSeekbar.bind(this);
+        // this.onInputSeekbar = this.onInputSeekbar.bind(this);
     }
 
     componentDidMount() {
